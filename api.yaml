@@ -1,0 +1,102 @@
+openapi: 3.0.1
+info:
+  title: simple-chatbot
+  license:
+    name: MIT
+  version: 1.0.0
+servers:
+  - url: '/api'
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: health-check api
+      x-swagger-router-controller: health
+      operationId: health
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Healthcheck'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /message:
+    post:
+      tags:
+        - message
+      summary: webhook for web chat
+      x-swagger-router-controller: message
+      operationId: message
+      requestBody:
+        x-name: body
+        description: webchat body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/webChatHookModel'
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    Healthcheck:
+      required:
+        - status
+      properties:
+        status:
+          type: string
+
+    Error:
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: boolean
+        message:
+          type: string
+
+    Response:
+      required:
+        - output
+      properties:
+        output:
+          type: object
+
+    webChatHookModel:
+      required:
+        - text
+        - userId
+      properties:
+        text:
+          type: string
+        userId:
+          type: string
+      example:
+        text: ciao
+        userId: "12345"

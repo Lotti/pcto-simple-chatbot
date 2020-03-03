@@ -1,0 +1,32 @@
+# Logs
+logs/
+*.log
+
+# Dependencies
+node_modules/
+
+# Coverage
+coverage/
+
+# Original source code
+/src/
+/client/
+
+# VS Code
+.vscode
+!.vscode/tasks.js
+
+# JetBrains IDEs
+.idea/
+
+# Optional eslint cache
+.eslintcache
+
+# Misc
+.DS_Store
+
+/output/*
+!output/.gitkeep
+
+/.env
+/manifest-credentials*.yaml
