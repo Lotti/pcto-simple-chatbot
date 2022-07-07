@@ -37,7 +37,7 @@
     "js-yaml": "^3.13.1",
     "jszip": "^3.2.2",
     "log4js": "^6.1.2",
-    "moment": "^2.24.0",
+    "moment": "^2.29.4",
     "oas-tools": "^2.1.7"
   },
   "devDependencies": {
