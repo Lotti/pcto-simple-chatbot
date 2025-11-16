@@ -34,14 +34,14 @@
     "express": "^4.21.2",
     "express-ipfilter": "^1.1.1",
     "ibm-watson": "^5.4.0",
-    "js-yaml": "^3.13.1",
+    "js-yaml": "^4.1.1",
     "jszip": "^3.7.0",
     "log4js": "^6.4.0",
     "moment": "^2.29.4",
-    "oas-tools": "^2.2.2"
+    "oas-tools": "^3.1.0"
   },
   "devDependencies": {
-    "eslint": "^6.8.0",
+    "eslint": "^9.39.1",
     "nodemon": "^2.0.2"
   }
 }
