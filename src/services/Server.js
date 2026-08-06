@@ -1,149 +1,181 @@
-const log4js = require('log4js');
-const log = log4js.getLogger('server');
+import { Buffer } from 'node:buffer';
+import Fastify from 'fastify';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
+import { openApiDocument } from '../openapi.js';
+import { createAssistantClient } from './Assistant.js';
 
-const fs = require('fs');
-const http = require('http');
-// const https = require('https');
-const path = require('path');
-const express = require('express');
-const bodyParser = require('body-parser');
-const compression = require('compression');
-const errorhandler = require('errorhandler');
-const oasTools = require('oas-tools');
-const jsyaml = require('js-yaml');
-const {IpDeniedError, IpFilter} = require('express-ipfilter');
+const docsAuthUser =
+  process.env.BASIC_AUTH_USERNAME ?? process.env.SWAGGER_NEXT_BASIC_AUTH_USERNAME ?? null;
+const docsAuthPassword =
+  process.env.BASIC_AUTH_PASSWORD ?? process.env.SWAGGER_NEXT_BASIC_AUTH_PASSWORD ?? null;
 
-const basicAuthUsername = process.env.BASIC_AUTH_USERNAME || false;
-const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD || false;
+const shouldProtectRoute = (url) =>
+  url === '/api-docs' || url === '/docs' || url.startsWith('/docs/') || url.startsWith('/api/');
 
-class Server {
-    constructor() {
-        /*
-        const options = {
-            key: fs.readFileSync('/path/to/key.pem'),
-            cert: fs.readFileSync('/path/to/cert.pem'),
-        };
-        */
+const parseBasicAuth = (header) => {
+  if (!header?.startsWith('Basic ')) {
+    return null;
+  }
 
-        this.port = process.env.PORT || 3000;
-        this.app = express();
-        this.app.set('port', this.port);
-        this.app.use(bodyParser.json({strict: false, limit: '10mb'}));
-        this.app.use(compression());
-        if (process.env.IPFILTERING && process.env.IPFILTERING.length > 0) {
-            const ips = process.env.IPFILTERING.split(',');
-            this.app.use(IpFilter(ips, {mode: 'allow'}));
-        }
+  const decoded = Buffer.from(header.slice('Basic '.length), 'base64').toString('utf8');
+  const separatorIndex = decoded.indexOf(':');
 
-        this.httpServer = http.createServer(this.app);
-        // this.httpsServer = https.createServer(options, this.app);
+  if (separatorIndex < 0) {
+    return null;
+  }
 
-        if (process.env.NODE_ENV !== 'production') {
-            this.app.use(errorhandler());
-        } else {
-            this.app.use((err, req, res, next) => {
-                if (err instanceof IpDeniedError) {
-                    res.status(401).end('Forbidden');
-                } else {
-                    const status = err.status || 500;
-                    if (process.env.NODE_ENV !== 'production') {
-                        log.error('Request Error', err);
-                        res.status(status).end(err.message);
-                    } else {
-                        res.status(status).end();
-                    }
-                }
-            });
-        }
+  return {
+    password: decoded.slice(separatorIndex + 1),
+    username: decoded.slice(0, separatorIndex),
+  };
+};
 
-        this.clientPath = path.join(process.cwd(), 'client', 'build');
-        this.indexPage = path.join(this.clientPath, 'index.html');
+const renderHomePage = () => `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>simple-chatbot</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+      }
 
-        // REACT APP
-        const maxAge = 60 * 60 * 1000; // 1 hour
-        this.app.use(express.static(this.clientPath, {maxAge}));
-        this.app.use((req, res, next) => {
-            const enabledPaths = ['api', 'api-docs', 'docs'];
-            if (!enabledPaths.includes(req.url.split('/')[1])) {
-                res.sendFile(this.indexPage);
-            } else {
-                next();
-            }
-        });
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at top right, rgba(72, 187, 120, 0.22), transparent 32%),
+          linear-gradient(180deg, #e7efe9 0%, #f8f4ea 100%);
+        color: #102a43;
+      }
 
-        // SWAGGER
-        const spec = fs.readFileSync(path.join(process.cwd(), 'api.yaml'), 'utf8');
-        this.oasDoc = jsyaml.safeLoad(spec);
+      main {
+        width: min(52rem, calc(100vw - 2rem));
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(16, 42, 67, 0.1);
+        border-radius: 28px;
+        padding: 2rem;
+        box-shadow: 0 22px 60px rgba(16, 42, 67, 0.12);
+      }
 
-        const swaggerLogger = log4js.getLogger('swagger');
-        swaggerLogger.warning = swaggerLogger.warn;
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: clamp(2rem, 8vw, 4rem);
+      }
 
-        this.options_object = {
-            controllers: path.join(process.cwd(), 'src', 'controllers'),
-            customLogger: swaggerLogger,
-            strict: false,
-            router: true,
-            validator: true,
-            docs: {
-                apiDocs: '/api-docs',
-                apiDocsPrefix: '',
-                swaggerUi: '/docs',
-                swaggerUiPrefix: '',
-            },
-            oasSecurity: true,
-            securityFile: {
-                BasicAuth: (req, secDef, token, next) => {
-                    let auth = req.headers.authorization || req.headers.Authorization;
-                    if (auth && auth.replace) {
-                        auth = auth.replace(/^[b|B]asic\s/, '');
-                        const base64 = Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`, 'utf8').toString('base64');
-                        if (basicAuthUsername && basicAuthPassword && auth === base64) {
-                            return next();
-                        }
-                    }
-                    return req.res.status(403).send({error: true, code: 403, message: `invalid credentials`});
-                }
-            }
-        };
+      p {
+        line-height: 1.7;
+        max-width: 40rem;
+      }
 
-        oasTools.configure(this.options_object);
-        oasTools.initialize(this.oasDoc, this.app, (error) => {
-            if (error) {
-                log.error(error);
-            } else {
-                log.info('OAS initialized');
-            }
-        });
-        // END SWAGGER
+      a {
+        color: #0f5b4c;
+        font-weight: 700;
+      }
+
+      ul {
+        padding-left: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>simple-chatbot</h1>
+      <p>
+        Minimal Fastify gateway for IBM Watson Assistant. This repository now focuses on
+        the server-side integration only, with a small, auditable dependency graph.
+      </p>
+      <ul>
+        <li><a href="/docs">Interactive API docs</a></li>
+        <li><a href="/api-docs">OpenAPI JSON</a></li>
+        <li><a href="/api/health">Health endpoint</a></li>
+      </ul>
+    </main>
+  </body>
+</html>`;
+
+export const createApp = async ({ assistantClient = createAssistantClient() } = {}) => {
+  const app = Fastify({
+    logger: false,
+  });
+
+  await app.register(swagger, {
+    openapi: openApiDocument,
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false,
+    },
+  });
+
+  app.addHook('onRequest', async (request, reply) => {
+    if (!docsAuthUser || !docsAuthPassword || !shouldProtectRoute(request.url)) {
+      return;
     }
 
-    /**
-     * Static method to return the same instance
-     */
-    static INSTANCE() {
-        if (!Server.instance) {
-            Server.instance = new Server();
-        }
+    const credentials = parseBasicAuth(request.headers.authorization);
 
-        return Server.instance;
+    if (
+      credentials?.username === docsAuthUser &&
+      credentials?.password === docsAuthPassword
+    ) {
+      return;
     }
 
-    run() {
-        this.httpServer.listen(this.port, () => {
-            log.info(`App running at localhost:${this.port}`);
-            if (this.options_object.docs !== false) {
-                log.info(`API docs (Swagger UI) available on localhost:${this.port}/docs`);
-            }
-        });
+    reply
+      .code(401)
+      .header('www-authenticate', 'Basic realm="simple-chatbot"')
+      .send({ error: true, message: 'invalid credentials' });
+  });
+
+  app.get('/', async (_request, reply) => {
+    reply.type('text/html; charset=utf-8');
+    return renderHomePage();
+  });
+
+  app.get('/api-docs', async () => openApiDocument);
+
+  app.get('/api/health', async () => ({ status: 'UP' }));
+
+  app.post('/api/message', async (request, reply) => {
+    const { text, userId } = request.body ?? {};
+
+    if (typeof text !== 'string' || text.trim() === '' || typeof userId !== 'string' || userId.trim() === '') {
+      reply.code(400);
+      return {
+        error: true,
+        message: 'Both "text" and "userId" must be non-empty strings.',
+      };
     }
 
-    getHttpServer() {
-        return this.httpServer;
+    if (!assistantClient.isConfigured) {
+      reply.code(503);
+      return {
+        error: true,
+        message:
+          'Watson Assistant is not configured. Set ASSISTANT_URL, ASSISTANT_ID, and ASSISTANT_APIKEY.',
+      };
     }
 
-    getApp() {
-        return this.app;
+    try {
+      const output = await assistantClient.sendMessage(userId.trim(), text.trim());
+      return { output };
+    } catch (error) {
+      reply.code(502);
+      return {
+        error: true,
+        message: error instanceof Error ? error.message : 'Assistant request failed.',
+      };
     }
-}
+  });
 
-module.exports = Server;
+  return app;
+};

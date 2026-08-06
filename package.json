@@ -1,47 +1,27 @@
 {
-  "name": "simple-chatbot",
-  "version": "1.0.0",
-  "description": "simple chatbot",
+  "name": "pcto-simple-chatbot",
+  "version": "2.0.0",
+  "description": "A modern Fastify chatbot gateway for IBM Watson Assistant",
   "private": true,
-  "author": "Valerio Riva <valerio.riva@it.ibm.com>",
   "license": "MIT",
-  "main": "index.js",
+  "type": "module",
+  "main": "main.js",
   "repository": "https://github.com/Lotti/simple-chatbot.git",
-  "engineStrict": true,
   "engines": {
-    "node": ">=8.11.x",
-    "npm": ">=5.6.x"
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
   },
   "scripts": {
-    "install-client": "(cd ./client && npm install)",
-    "start-client": "(cd ./client && npm start)",
-    "build-client": "(cd ./client && npm run build)",
-    "start": "node -r dotenv/config main.js",
-    "watch": "nodemon -r dotenv/config main.js",
-    "install-all": "npm install && npm run install-client",
-    "lint": "eslint --fix .",
-    "pretest": "npm run lint",
-    "push": "npm run build-client && bx cf push -f manifest-credentials-development.yaml",
-    "push-prod": "npm run build-client && bx cf push -f manifest-credentials-production.yaml"
+    "dev": "node --watch main.js",
+    "lint": "node ./scripts/validate-project.mjs",
+    "start": "node ./main.js",
+    "test": "node ./scripts/smoke-test.mjs"
   },
   "dependencies": {
-    "bagpipes": "^0.2.1",
-    "body-parser": "^1.19.0",
-    "chance": "^1.1.4",
-    "compression": "^1.8.1",
-    "dotenv": "^8.2.0",
-    "errorhandler": "^1.5.1",
-    "express": "^4.21.2",
-    "express-ipfilter": "^1.1.1",
-    "ibm-watson": "^5.4.0",
-    "js-yaml": "^3.13.1",
-    "jszip": "^3.7.0",
-    "log4js": "^6.4.0",
-    "moment": "^2.29.4",
-    "oas-tools": "^2.2.2"
-  },
-  "devDependencies": {
-    "eslint": "^6.8.0",
-    "nodemon": "^2.0.2"
+    "@fastify/swagger": "9.8.1",
+    "@fastify/swagger-ui": "6.1.1",
+    "dotenv": "17.4.2",
+    "fastify": "5.11.2",
+    "ibm-watson": "12.2.0"
   }
 }

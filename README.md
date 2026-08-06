@@ -1,29 +1,38 @@
- # Simple chatbot
+# Simple chatbot
 
-Server is made with Node.js. Client is made with React and ant.design framework. It uses Watson Assistant to deliver chatbot functionality.
+This repo is now a small Fastify service that exposes:
 
-- npm run install-all: installs all server and client dependencies
-- npm start: run server
-- npm run start-client: run react development server
-- npm run watch: run server and reload it every time it detects a change on code
-- npm run build-client: compile react client code
-- more commands defined in package.json
+- `GET /api/health`
+- `POST /api/message`
+- interactive docs at `/docs`
+- OpenAPI JSON at `/api-docs`
 
-# Work with Docker
+Required environment variables for real Watson Assistant calls:
 
-To run the sample chatbot app with Docker
-
-* Create a Docker.env file containing the following variables:
-
-```
+```bash
 ASSISTANT_URL='...'
 ASSISTANT_APIKEY='...'
 ASSISTANT_ID='...'
 ```
 
-* Run the following command to build and run the Docker
+Optional docs/API basic auth:
+
+```bash
+BASIC_AUTH_USERNAME='...'
+BASIC_AUTH_PASSWORD='...'
 ```
+
+Useful commands:
+
+- `npm install`
+- `npm run lint`
+- `npm test`
+- `npm start`
+- `npm run dev`
+
+Docker example:
+
+```bash
 docker build -t chatbot .
 docker run --env-file ./Docker.env -p 8080:3000 chatbot
 ```
-* Open the url http://localhost:8080

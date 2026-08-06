@@ -1,11 +1,14 @@
-FROM node:10
-WORKDIR /usr/src/app
-COPY . /usr/src/app
+FROM node:24-alpine
 
-RUN npm run install-all
-RUN npm run build-client
+WORKDIR /usr/src/app
+
+COPY package.json package-lock.json* ./
+RUN npm install
+
+COPY . .
 
 ENV PORT=3000
 
-EXPOSE 8080
-CMD [ "npm", "start" ]
+EXPOSE 3000
+
+CMD ["npm", "start"]

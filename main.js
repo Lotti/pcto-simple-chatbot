@@ -1,13 +1,14 @@
-require('dotenv').config();
-const path = require('path');
-const log4js = require('log4js');
-log4js.configure(path.join(__dirname, 'log4js.json'));
-const log = log4js.getLogger('main');
+import 'dotenv/config';
+import { createApp } from './src/services/Server.js';
 
-process.on('unhandledRejection', (error, p) => {
-    log.warn('=== UNHANDLED REJECTION ===');
-    console.dir(error.stack);
-});
+const port = Number.parseInt(process.env.PORT ?? '3000', 10);
+const host = process.env.HOST ?? '0.0.0.0';
 
-const Server = require('./src/services/Server');
-Server.INSTANCE().run();
+try {
+  const app = await createApp();
+  await app.listen({ host, port });
+  console.log(`simple-chatbot listening on http://${host}:${port}`);
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+}
